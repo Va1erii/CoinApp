@@ -1,8 +1,10 @@
 package com.valerii.coinapp.di
 
+import android.content.Context
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.valerii.coinapp.R
 import com.valerii.coinapp.mapper.CurrencyListResponseMapper
 import com.valerii.coinapp.mapper.CurrencyRatesResponseMapper
 import com.valerii.coinapp.model.Currency
@@ -15,6 +17,7 @@ import com.valerii.coinapp.network.adapter.QuoteListAdapter
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -30,7 +33,7 @@ class NetworkModule {
     @Singleton
     fun provideMoshi(
         currencyListAdapter: CurrencyListAdapter,
-        quoteListAdapter: QuoteListAdapter
+        quoteListAdapter: QuoteListAdapter,
     ): Moshi {
         return Moshi.Builder()
             .addLast(KotlinJsonAdapterFactory())
@@ -47,9 +50,9 @@ class NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(@ApplicationContext applicationContext: Context): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor(HttpRequestInterceptor())
+            .addInterceptor(HttpRequestInterceptor(applicationContext.getString(R.string.api_key)))
             .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
             .build()
     }
@@ -75,7 +78,7 @@ class NetworkModule {
     fun provideCurrencyLayerClient(
         currencyLayerService: CurrencyLayerService,
         currencyListResponseMapper: CurrencyListResponseMapper,
-        currencyRatesResponseMapper: CurrencyRatesResponseMapper
+        currencyRatesResponseMapper: CurrencyRatesResponseMapper,
     ): CurrencyLayerClient {
         return CurrencyLayerClient(
             currencyLayerService,

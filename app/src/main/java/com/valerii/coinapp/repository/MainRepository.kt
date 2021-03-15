@@ -22,7 +22,7 @@ class MainRepository @Inject constructor(
     private val currencyRateDao: CurrencyRateDao
 ) {
     companion object {
-        private val RATE_UPDATE_TIME = TimeUnit.MINUTES.toMillis(30)
+        private val RATE_UPDATE_TIME = TimeUnit.SECONDS.toMillis(5)
     }
 
     private val currencyList: BehaviorSubject<ClientResponse<List<Currency>>> =
@@ -78,8 +78,11 @@ class MainRepository @Inject constructor(
         return if (!isNewSource(source)) {
             currencyRates
         } else {
-            // Fetch currency rates from the database
-            fetchCurrencyRatesFromDatabase(source)
+            // Update rates with interval
+            Observable.interval(RATE_UPDATE_TIME, TimeUnit.MILLISECONDS)
+                .startWithItem(0)
+                // Fetch currency rates from the database
+                .flatMapSingle { fetchCurrencyRatesFromDatabase(source) }
                 .subscribeOn(Schedulers.io())
                 .flatMap {
                     if (it == CurrencyRate.Empty) {
@@ -96,23 +99,18 @@ class MainRepository @Inject constructor(
         }
     }
 
-    private fun fetchCurrencyRatesFromDatabase(source: String): Observable<CurrencyRate> {
-        // Update rates with interval: RATE_UPDATE_TIME
-        return Observable.interval(RATE_UPDATE_TIME, TimeUnit.MILLISECONDS)
-            .startWithItem(0)
-            .flatMapSingle {
-                Single.create { emitter ->
-                    var currencyRate = currencyRateDao.getCurrencyRate(source) ?: CurrencyRate.Empty
-                    // Check rate's times tump. If rates were updated more than RATE_UPDATE_TIME ago return CurrencyRate.Empty
-                    // CurrencyRate.Empty invokes update rates from the server side
-                    if (currencyRate.timestamp >= System.currentTimeMillis() - RATE_UPDATE_TIME) {
-                        currencyRate = CurrencyRate.Empty
-                    }
-                    if (!emitter.isDisposed) {
-                        emitter.onSuccess(currencyRate)
-                    }
-                }
+    private fun fetchCurrencyRatesFromDatabase(source: String): Single<CurrencyRate> {
+        return Single.create { emitter ->
+            var currencyRate = currencyRateDao.getCurrencyRate(source) ?: CurrencyRate.Empty
+            // Check rate's times tump. If rates were updated more than RATE_UPDATE_TIME ago return CurrencyRate.Empty
+            // CurrencyRate.Empty invokes update rates from the server side
+            if (currencyRate.timestamp <= System.currentTimeMillis() - RATE_UPDATE_TIME) {
+                currencyRate = CurrencyRate.Empty
             }
+            if (!emitter.isDisposed) {
+                emitter.onSuccess(currencyRate)
+            }
+        }
     }
 
     private fun fetchCurrencyRatesFromServer(source: String): Single<ClientResponse<CurrencyRate>> {
