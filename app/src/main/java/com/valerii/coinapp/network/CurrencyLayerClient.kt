@@ -15,6 +15,9 @@ class CurrencyLayerClient @Inject constructor(
     private val currencyListResponseMapper: CurrencyListResponseMapper,
     private val currencyRatesResponseMapper: CurrencyRatesResponseMapper
 ) {
+    /**
+     * Return available currencies
+     */
     @WorkerThread
     fun fetchCurrencyList(): Single<ClientResponse<List<Currency>>> {
         return Single.create<ClientResponse<List<Currency>>> { emitter ->
@@ -25,10 +28,16 @@ class CurrencyLayerClient @Inject constructor(
         }.subscribeOn(Schedulers.io())
     }
 
+    /**
+     * Return currency rates containing all available or specified currency pairs with their respective exchange rate values
+     * <br>
+     * Note: Default source is USD. For free API access, we cannot change source.
+     * @param source Currency to which all exchange rates are relative
+     */
     @WorkerThread
     fun fetchCurrencyRates(source: String): Single<ClientResponse<CurrencyRate>> {
         return Single.create<ClientResponse<CurrencyRate>> { emitter ->
-            val response = currencyLayerService.fetchCurrencyRates("USD").execute()
+            val response = currencyLayerService.fetchCurrencyRates(source).execute()
             if (!emitter.isDisposed) {
                 emitter.onSuccess(currencyRatesResponseMapper.map(response))
             }

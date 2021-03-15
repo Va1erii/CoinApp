@@ -8,7 +8,7 @@ class HttpRequestInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         val requestUrl = originalRequest.url.newBuilder()
-            .addQueryParameter("access_key", "80a8d23bd1b8f9fe16be1b8b716156bb")
+            .addQueryParameter("access_key", ApiKey.apiKey())
             .build()
         val request = originalRequest.newBuilder()
             .url(requestUrl)
