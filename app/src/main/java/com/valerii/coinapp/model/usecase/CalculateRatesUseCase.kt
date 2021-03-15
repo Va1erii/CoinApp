@@ -7,6 +7,11 @@ import io.reactivex.rxjava3.schedulers.Schedulers
 import java.math.BigDecimal
 
 interface CalculateRatesUseCase {
+    /**
+     * Calculate currency rates with the specified source value
+     * @param sourceValue Source value
+     * @param baseRates Source rates: sourceValue == 1
+     */
     fun calculate(
         sourceValue: BigDecimal,
         baseRates: List<Quote>
@@ -22,7 +27,12 @@ class BaseCalculateRatesUseCase : CalculateRatesUseCase {
         return Observable.create<List<Quote>> { emitter ->
             emitter.onNext(
                 baseRates.asSequence()
-                    .map { it.copy(rate = sourceValue.multiply((it.rate.toBigDecimal())).toEngineeringString()) }
+                    .map {
+                        it.copy(
+                            rate = sourceValue.multiply((it.rate.toBigDecimal()))
+                                .toEngineeringString()
+                        )
+                    }
                     .toList()
             )
         }

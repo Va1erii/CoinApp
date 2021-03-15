@@ -5,14 +5,14 @@ import com.valerii.coinapp.model.usecase.CalculateRatesUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
+import dagger.hilt.android.components.ViewModelComponent
+import dagger.hilt.android.scopes.ViewModelScoped
 
 @Module
-@InstallIn(SingletonComponent::class)
+@InstallIn(ViewModelComponent::class)
 class UseCaseModule {
     @Provides
-    @Singleton
+    @ViewModelScoped
     fun provideCalculateRatesUseCase(): CalculateRatesUseCase {
         return BaseCalculateRatesUseCase()
     }

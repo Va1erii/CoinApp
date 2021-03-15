@@ -9,15 +9,22 @@ import com.valerii.coinapp.persistence.CurrencyRateDao
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import io.reactivex.rxjava3.subjects.BehaviorSubject
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class MainRepository @Inject constructor(
     private val currencyLayerClient: CurrencyLayerClient,
+    private val fakeCurrencyRateGenerator: FakeCurrencyRateGenerator,
     private val currencyDao: CurrencyDao,
     private val currencyRateDao: CurrencyRateDao
 ) {
+    companion object {
+        private val RATE_UPDATE_TIME = TimeUnit.MINUTES.toMillis(30)
+    }
+
     private val currencyList: BehaviorSubject<ClientResponse<List<Currency>>> =
         BehaviorSubject.create()
     private val currencyRates: BehaviorSubject<ClientResponse<CurrencyRate>> =
@@ -27,20 +34,14 @@ class MainRepository @Inject constructor(
         return if (currencyList.hasValue()) {
             currencyList
         } else {
-            Observable
-                .create<List<Currency>> { it.onNext(currencyDao.getCurrencyList()) }
+            // Fetch currencies from the database
+            fetchCurrenciesFromDatabase()
                 .subscribeOn(Schedulers.io())
-                .flatMap {
+                .flatMapObservable {
                     if (it.isEmpty()) {
-                        currencyLayerClient.fetchCurrencyList()
-                            .flatMapCompletable {
-                                Completable.fromRunnable {
-                                    if (it is ClientResponse.Success) {
-                                        currencyDao.insertCurrencyList(it.data)
-                                    }
-                                    currencyList.onNext(it)
-                                }
-                            }
+                        // Fetch currencies from the server and save to the database
+                        fetchCurrenciesFromServer()
+                            .flatMapCompletable { saveCurrencies(it) }
                             .andThen(currencyList)
                     } else {
                         currencyList.onNext(ClientResponse.Success(it))
@@ -51,28 +52,40 @@ class MainRepository @Inject constructor(
         }
     }
 
+    private fun fetchCurrenciesFromDatabase(): Single<List<Currency>> {
+        return Single.create { emitter ->
+            val currencies = currencyDao.getCurrencyList()
+            if (!emitter.isDisposed) emitter.onSuccess(currencies)
+        }
+    }
+
+    private fun fetchCurrenciesFromServer(): Single<ClientResponse<List<Currency>>> {
+        return currencyLayerClient.fetchCurrencyList()
+    }
+
+    private fun saveCurrencies(response: ClientResponse<List<Currency>>): Completable {
+        return Completable.fromRunnable {
+            when (response) {
+                is ClientResponse.Success -> {
+                    currencyDao.insertCurrencyList(response.data)
+                    currencyList.onNext(response)
+                }
+            }
+        }
+    }
+
     fun fetchCurrencyRates(source: String): Observable<ClientResponse<CurrencyRate>> {
-        return if (currencyRates.hasValue()) {
+        return if (!isNewSource(source)) {
             currencyRates
         } else {
-            Observable
-                .create<CurrencyRate> {
-                    it.onNext(
-                        currencyRateDao.getCurrencyRate(source) ?: CurrencyRate.Empty
-                    )
-                }
+            // Fetch currency rates from the database
+            fetchCurrencyRatesFromDatabase(source)
                 .subscribeOn(Schedulers.io())
                 .flatMap {
                     if (it == CurrencyRate.Empty) {
-                        currencyLayerClient.fetchCurrencyRates(source)
-                            .flatMapCompletable {
-                                Completable.fromRunnable {
-                                    if (it is ClientResponse.Success) {
-                                        currencyRateDao.insertCurrencyRate(it.data)
-                                    }
-                                    currencyRates.onNext(it)
-                                }
-                            }
+                        // Fetch currency rates from the server and save to the database
+                        fetchCurrencyRatesFromServer(source)
+                            .flatMapCompletable { saveCurrencyRates(it) }
                             .andThen(currencyRates)
                     } else {
                         currencyRates.onNext(ClientResponse.Success(it))
@@ -81,5 +94,69 @@ class MainRepository @Inject constructor(
                 }
                 .observeOn(AndroidSchedulers.mainThread())
         }
+    }
+
+    private fun fetchCurrencyRatesFromDatabase(source: String): Observable<CurrencyRate> {
+        // Update rates with interval: RATE_UPDATE_TIME
+        return Observable.interval(RATE_UPDATE_TIME, TimeUnit.MILLISECONDS)
+            .startWithItem(0)
+            .flatMapSingle {
+                Single.create { emitter ->
+                    var currencyRate = currencyRateDao.getCurrencyRate(source) ?: CurrencyRate.Empty
+                    // Check rate's times tump. If rates were updated more than RATE_UPDATE_TIME ago return CurrencyRate.Empty
+                    // CurrencyRate.Empty invokes update rates from the server side
+                    if (currencyRate.timestamp >= System.currentTimeMillis() - RATE_UPDATE_TIME) {
+                        currencyRate = CurrencyRate.Empty
+                    }
+                    if (!emitter.isDisposed) {
+                        emitter.onSuccess(currencyRate)
+                    }
+                }
+            }
+    }
+
+    private fun fetchCurrencyRatesFromServer(source: String): Single<ClientResponse<CurrencyRate>> {
+        // Free API access supports only USD
+        return if (source != "USD") {
+            fetchFakeCurrencyRates(source)
+        } else {
+            currencyLayerClient.fetchCurrencyRates(source)
+        }
+    }
+
+    private fun fetchFakeCurrencyRates(source: String): Single<ClientResponse<CurrencyRate>> {
+        return fetchCurrencyList()
+            .flatMapSingle {
+                when (it) {
+                    is ClientResponse.Success<List<Currency>> -> {
+                        fakeCurrencyRateGenerator.calculate(source, it.data)
+                            .map { ClientResponse.Success(it) }
+                    }
+                    is ClientResponse.Error<List<Currency>> -> {
+                        Single.just(ClientResponse.Error(it.error))
+                    }
+                }
+            }
+            .firstOrError()
+    }
+
+    private fun saveCurrencyRates(response: ClientResponse<CurrencyRate>): Completable {
+        return Completable.fromRunnable {
+            when (response) {
+                is ClientResponse.Success -> {
+                    currencyRateDao.insertCurrencyRate(response.data)
+                    currencyRates.onNext(response)
+                }
+            }
+        }
+    }
+
+    private fun isNewSource(source: String): Boolean {
+        return if (currencyRates.hasValue()) {
+            return when (val value = currencyRates.value) {
+                is ClientResponse.Success -> value.data.source != source
+                else -> true
+            }
+        } else true
     }
 }
