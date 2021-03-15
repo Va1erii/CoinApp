@@ -56,4 +56,4 @@ freeline/
 freeline_project_description.json
 
 # Api Key
-/app/src/main/cpp
+/app/src/main/res/values/keys.xml
