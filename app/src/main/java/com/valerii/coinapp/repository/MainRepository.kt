@@ -19,10 +19,10 @@ class MainRepository @Inject constructor(
     private val currencyLayerClient: CurrencyLayerClient,
     private val fakeCurrencyRateGenerator: FakeCurrencyRateGenerator,
     private val currencyDao: CurrencyDao,
-    private val currencyRateDao: CurrencyRateDao
+    private val currencyRateDao: CurrencyRateDao,
 ) {
     companion object {
-        private val RATE_UPDATE_TIME = TimeUnit.SECONDS.toMillis(5)
+        private val RATE_UPDATE_TIME = TimeUnit.MINUTES.toMillis(30)
     }
 
     private val currencyList: BehaviorSubject<ClientResponse<List<Currency>>> =
@@ -102,7 +102,7 @@ class MainRepository @Inject constructor(
     private fun fetchCurrencyRatesFromDatabase(source: String): Single<CurrencyRate> {
         return Single.create { emitter ->
             var currencyRate = currencyRateDao.getCurrencyRate(source) ?: CurrencyRate.Empty
-            // Check rate's times tump. If rates were updated more than RATE_UPDATE_TIME ago return CurrencyRate.Empty
+            // Check rate's timestump. If rates were updated more than RATE_UPDATE_TIME ago return CurrencyRate.Empty
             // CurrencyRate.Empty invokes update rates from the server side
             if (currencyRate.timestamp <= System.currentTimeMillis() - RATE_UPDATE_TIME) {
                 currencyRate = CurrencyRate.Empty
