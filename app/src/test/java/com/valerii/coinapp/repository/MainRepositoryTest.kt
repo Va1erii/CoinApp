@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MainRepositoryTest {
 
     @Before
-    fun init() {
+    fun setup() {
         RxAndroidPlugins.setInitMainThreadSchedulerHandler { _ ->
             Schedulers.from { it.run() }
         }
