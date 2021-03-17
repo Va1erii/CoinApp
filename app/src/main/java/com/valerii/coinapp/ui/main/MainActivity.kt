@@ -1,67 +1,54 @@
 package com.valerii.coinapp.ui.main
 
 import android.os.Bundle
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatSpinner
 import androidx.core.widget.addTextChangedListener
-import androidx.recyclerview.widget.RecyclerView
-import com.valerii.coinapp.R
+import androidx.recyclerview.widget.DividerItemDecoration
+import com.valerii.coinapp.databinding.ActivityMainBinding
 import com.valerii.coinapp.extension.visibleIf
+import com.valerii.coinapp.ui.adapter.CurrencySpinnerAdapter
 import com.valerii.coinapp.ui.adapter.QuotesAdapter
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
-    val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        val spinner = findViewById<AppCompatSpinner>(R.id.currency_spinner)
-        val indication = findViewById<View>(R.id.indication)
-        val value: EditText = findViewById(R.id.value)
-        value.addTextChangedListener {
+        val binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        val quotesAdapter = QuotesAdapter()
+        binding.value.addTextChangedListener {
             it?.toString()?.let(viewModel::updateCurrencyValue)
         }
+        binding.quotes.adapter = quotesAdapter
+        binding.quotes.addItemDecoration(DividerItemDecoration(this,
+            DividerItemDecoration.VERTICAL))
+        val spinnerAdapter = CurrencySpinnerAdapter {
+            viewModel.selectCurrency(it)
+            binding.currencySpinner.onDetachedFromWindow()
+        }
+        binding.currencySpinner.adapter = spinnerAdapter
 
-        val rates: RecyclerView = findViewById(R.id.rates)
-        val adapter = QuotesAdapter()
-        rates.adapter = adapter
+        viewModel.defaultValue.observe(this) {
+            binding.value.hint = it
+        }
+
+        viewModel.selected.observe(this) {
+            spinnerAdapter.select(it)
+        }
 
         viewModel.currencies.observe(this) {
-            val spinnerAdapter = ArrayAdapter(
-                this,
-                R.layout.spinner_item_view,
-                it
-            )
-            spinner.adapter = spinnerAdapter
-            spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    parent: AdapterView<*>?,
-                    view: View?,
-                    position: Int,
-                    id: Long
-                ) {
-                    spinnerAdapter.getItem(position)?.let {
-                        viewModel.selectCurrency(it)
-                    }
-                }
-
-                override fun onNothingSelected(parent: AdapterView<*>?) {
-                }
-            }
+            spinnerAdapter.update(it)
         }
         viewModel.isLoading.observe(this) { isLoading ->
-            indication.visibleIf(isLoading)
+            binding.indication.visibleIf(isLoading)
         }
         viewModel.quotes.observe(this) {
-            adapter.update(it)
+            quotesAdapter.update(it)
         }
         viewModel.error.observe(this) {
             Toast.makeText(this, it, Toast.LENGTH_LONG).show()

@@ -3,9 +3,9 @@ package com.valerii.coinapp.ui.adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.valerii.coinapp.R
+import com.valerii.coinapp.databinding.QuoteItemViewBinding
 import com.valerii.coinapp.model.Quote
 
 class QuotesAdapter : RecyclerView.Adapter<QuotesAdapter.QuoteVH>() {
@@ -30,12 +30,11 @@ class QuotesAdapter : RecyclerView.Adapter<QuotesAdapter.QuoteVH>() {
     }
 
     class QuoteVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val name: TextView = itemView.findViewById(R.id.name)
-        private val value: TextView = itemView.findViewById(R.id.value)
+        val binding = QuoteItemViewBinding.bind(itemView)
 
         fun bind(quote: Quote) {
-            name.text = quote.quote
-            value.text = quote.rate
+            binding.currencyName.text = quote.quote
+            binding.currencyValue.text = quote.rate
         }
     }
 }
