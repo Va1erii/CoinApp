@@ -22,7 +22,7 @@ class MainRepository @Inject constructor(
     private val currencyRateDao: CurrencyRateDao,
 ) {
     companion object {
-        private val RATE_UPDATE_TIME = TimeUnit.MINUTES.toMillis(30)
+        val RATE_UPDATE_TIME = TimeUnit.MINUTES.toMillis(30)
     }
 
     private val currencyList: BehaviorSubject<ClientResponse<List<Currency>>> =
@@ -143,9 +143,9 @@ class MainRepository @Inject constructor(
             when (response) {
                 is ClientResponse.Success -> {
                     currencyRateDao.insertCurrencyRate(response.data)
-                    currencyRates.onNext(response)
                 }
             }
+            currencyRates.onNext(response)
         }
     }
 
