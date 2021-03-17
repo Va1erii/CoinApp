@@ -6,8 +6,9 @@ import com.valerii.coinapp.mapper.ResponseMapper.ClientResponse
 import com.valerii.coinapp.model.Quote
 import com.valerii.coinapp.model.usecase.CalculateRatesUseCase
 import com.valerii.coinapp.repository.MainRepository
-import com.valerii.coinapp.utils.BigDecimalValueConverter
-import com.valerii.coinapp.utils.BigDecimalValueConverter.ConvertResult.*
+import com.valerii.coinapp.utils.ValueConverter
+import com.valerii.coinapp.utils.ValueConverter.ConvertResult
+import com.valerii.coinapp.utils.ValueFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
@@ -20,7 +21,8 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val mainRepository: MainRepository,
     private val calculateRatesUseCase: CalculateRatesUseCase,
-    private val valueConverter: BigDecimalValueConverter,
+    private val valueFormatter: ValueFormatter<BigDecimal>,
+    private val valueConverter: ValueConverter<BigDecimal>,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel(), LifecycleObserver {
     companion object {
@@ -34,8 +36,8 @@ class MainViewModel @Inject constructor(
     private val compositeDisposable = CompositeDisposable()
 
     val selected: MutableLiveData<String> = MutableLiveData()
-    val defaultValue: MutableLiveData<String> = MutableLiveData(valueConverter.convert(
-        DEFAULT_VALUE_IF_EMPTY)
+    val defaultValue: MutableLiveData<String> = MutableLiveData(
+        valueFormatter.format(DEFAULT_VALUE_IF_EMPTY)
     )
     val quotes: MutableLiveData<List<Quote>> = MutableLiveData()
     val currencies: MutableLiveData<List<String>> = MutableLiveData()
@@ -50,9 +52,9 @@ class MainViewModel @Inject constructor(
 
     fun updateCurrencyValue(value: String) {
         when (val convertResult = valueConverter.convert(value)) {
-            Empty -> selectedCurrencyValue.onNext(DEFAULT_VALUE_IF_EMPTY)
-            is Success -> selectedCurrencyValue.onNext(convertResult.value)
-            is Error -> error.value = "Value validation error"
+            is ConvertResult.Empty -> selectedCurrencyValue.onNext(DEFAULT_VALUE_IF_EMPTY)
+            is ConvertResult.Success -> selectedCurrencyValue.onNext(convertResult.value)
+            is ConvertResult.Error -> error.value = "Value validation error"
         }
     }
 

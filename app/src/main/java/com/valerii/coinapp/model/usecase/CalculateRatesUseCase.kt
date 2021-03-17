@@ -2,8 +2,9 @@ package com.valerii.coinapp.model.usecase
 
 import androidx.annotation.WorkerThread
 import com.valerii.coinapp.model.Quote
-import com.valerii.coinapp.utils.BigDecimalValueConverter
-import com.valerii.coinapp.utils.BigDecimalValueConverter.ConvertResult.*
+import com.valerii.coinapp.utils.ValueConverter
+import com.valerii.coinapp.utils.ValueConverter.ConvertResult
+import com.valerii.coinapp.utils.ValueFormatter
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import java.math.BigDecimal
@@ -22,7 +23,8 @@ interface CalculateRatesUseCase {
 }
 
 class BaseCalculateRatesUseCase @Inject constructor(
-    private val valueConverter: BigDecimalValueConverter,
+    private val valueConverter: ValueConverter<BigDecimal>,
+    private val valueFormatter: ValueFormatter<BigDecimal>,
 ) : CalculateRatesUseCase {
     @WorkerThread
     override fun calculate(
@@ -35,16 +37,20 @@ class BaseCalculateRatesUseCase @Inject constructor(
                     .map {
                         val quoteValue = valueConverter.convert(it.rate)
                         val rateValue = when (quoteValue) {
-                            Empty -> "-"
-                            is Success -> valueConverter.convert(
-                                quoteValue.value.multiply(sourceValue)
-                            )
-                            is Error -> "NaN"
+                            is ConvertResult.Empty -> ValueConverter.NaN
+                            is ConvertResult.Success -> {
+                                valueConverter.convertToString(
+                                    quoteValue.value.multiply(sourceValue),
+                                    valueFormatter
+                                )
+                            }
+                            is ConvertResult.Error -> ValueConverter.NaN
                         }
                         it.copy(rate = rateValue)
                     }
                     .toList()
             )
+            emitter.onComplete()
         }.subscribeOn(Schedulers.computation())
     }
 }
