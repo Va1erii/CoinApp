@@ -9,6 +9,7 @@ import com.valerii.coinapp.mapper.CurrencyListResponseMapper
 import com.valerii.coinapp.mapper.CurrencyRatesResponseMapper
 import com.valerii.coinapp.model.Currency
 import com.valerii.coinapp.model.Quote
+import com.valerii.coinapp.network.BaseCurrencyLayerClient
 import com.valerii.coinapp.network.CurrencyLayerClient
 import com.valerii.coinapp.network.CurrencyLayerService
 import com.valerii.coinapp.network.HttpRequestInterceptor
@@ -80,7 +81,7 @@ class NetworkModule {
         currencyListResponseMapper: CurrencyListResponseMapper,
         currencyRatesResponseMapper: CurrencyRatesResponseMapper,
     ): CurrencyLayerClient {
-        return CurrencyLayerClient(
+        return BaseCurrencyLayerClient(
             currencyLayerService,
             currencyListResponseMapper,
             currencyRatesResponseMapper

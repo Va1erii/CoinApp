@@ -68,9 +68,9 @@ class MainRepository @Inject constructor(
             when (response) {
                 is ClientResponse.Success -> {
                     currencyDao.insertCurrencyList(response.data)
-                    currencyList.onNext(response)
                 }
             }
+            currencyList.onNext(response)
         }
     }
 

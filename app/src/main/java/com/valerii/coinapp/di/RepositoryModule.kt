@@ -1,6 +1,7 @@
 package com.valerii.coinapp.di
 
 import com.valerii.coinapp.repository.FakeCurrencyRateGenerator
+import com.valerii.coinapp.network.BaseCurrencyLayerClient
 import com.valerii.coinapp.network.CurrencyLayerClient
 import com.valerii.coinapp.persistence.CurrencyDao
 import com.valerii.coinapp.persistence.CurrencyRateDao

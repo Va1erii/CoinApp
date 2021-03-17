@@ -30,7 +30,7 @@ class BaseCalculateRatesUseCaseTest {
         )
         val sourceValue = BigDecimal.ONE
         val test = calculateRatesUseCase.calculate(sourceValue, quotes).test()
-        test.await(5, TimeUnit.SECONDS)
+        test.awaitCount(1)
         test.assertValues(
             listOf(
                 Quote("One", ValueConverter.NaN),
@@ -56,7 +56,7 @@ class BaseCalculateRatesUseCaseTest {
         )
         val sourceValue = BigDecimal.ONE
         val test = calculateRatesUseCase.calculate(sourceValue, quotes).test()
-        test.await(5, TimeUnit.SECONDS)
+        test.awaitCount(1)
         test.assertValues(
             listOf(
                 Quote("One", ValueConverter.NaN),
@@ -83,7 +83,7 @@ class BaseCalculateRatesUseCaseTest {
         )
         val sourceValue = BigDecimal.valueOf(10)
         val test = calculateRatesUseCase.calculate(sourceValue, quotes).test()
-        test.await(5, TimeUnit.SECONDS)
+        test.awaitCount(1)
         test.assertValues(
             listOf(
                 Quote("One", "10"),

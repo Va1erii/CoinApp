@@ -10,16 +10,21 @@ import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.schedulers.Schedulers
 import javax.inject.Inject
 
-class CurrencyLayerClient @Inject constructor(
+interface CurrencyLayerClient {
+    fun fetchCurrencyList(): Single<ClientResponse<List<Currency>>>
+    fun fetchCurrencyRates(source: String): Single<ClientResponse<CurrencyRate>>
+}
+
+class BaseCurrencyLayerClient @Inject constructor(
     private val currencyLayerService: CurrencyLayerService,
     private val currencyListResponseMapper: CurrencyListResponseMapper,
-    private val currencyRatesResponseMapper: CurrencyRatesResponseMapper
-) {
+    private val currencyRatesResponseMapper: CurrencyRatesResponseMapper,
+) : CurrencyLayerClient {
     /**
      * Return available currencies
      */
     @WorkerThread
-    fun fetchCurrencyList(): Single<ClientResponse<List<Currency>>> {
+    override fun fetchCurrencyList(): Single<ClientResponse<List<Currency>>> {
         return Single.create<ClientResponse<List<Currency>>> { emitter ->
             val response = currencyLayerService.fetchCurrencyList().execute()
             if (!emitter.isDisposed) {
@@ -35,7 +40,7 @@ class CurrencyLayerClient @Inject constructor(
      * @param source Currency to which all exchange rates are relative
      */
     @WorkerThread
-    fun fetchCurrencyRates(source: String): Single<ClientResponse<CurrencyRate>> {
+    override fun fetchCurrencyRates(source: String): Single<ClientResponse<CurrencyRate>> {
         return Single.create<ClientResponse<CurrencyRate>> { emitter ->
             val response = currencyLayerService.fetchCurrencyRates(source).execute()
             if (!emitter.isDisposed) {
