@@ -20,6 +20,7 @@ class MainRepository @Inject constructor(
     private val fakeCurrencyRateGenerator: FakeCurrencyRateGenerator,
     private val currencyDao: CurrencyDao,
     private val currencyRateDao: CurrencyRateDao,
+    private val rateUpdateTime: Long = RATE_UPDATE_TIME, // For test purpose.
 ) {
     companion object {
         val RATE_UPDATE_TIME = TimeUnit.MINUTES.toMillis(30)
@@ -79,7 +80,7 @@ class MainRepository @Inject constructor(
             currencyRates
         } else {
             // Update rates with interval
-            Observable.interval(RATE_UPDATE_TIME, TimeUnit.MILLISECONDS)
+            Observable.interval(rateUpdateTime, TimeUnit.MILLISECONDS)
                 .startWithItem(0)
                 // Fetch currency rates from the database
                 .flatMapSingle { fetchCurrencyRatesFromDatabase(source) }
@@ -104,7 +105,7 @@ class MainRepository @Inject constructor(
             var currencyRate = currencyRateDao.getCurrencyRate(source) ?: CurrencyRate.Empty
             // Check rate's timestump. If rates were updated more than RATE_UPDATE_TIME ago return CurrencyRate.Empty
             // CurrencyRate.Empty invokes update rates from the server side
-            if (currencyRate.timestamp <= System.currentTimeMillis() - RATE_UPDATE_TIME) {
+            if (currencyRate.timestamp <= System.currentTimeMillis() - rateUpdateTime) {
                 currencyRate = CurrencyRate.Empty
             }
             if (!emitter.isDisposed) {

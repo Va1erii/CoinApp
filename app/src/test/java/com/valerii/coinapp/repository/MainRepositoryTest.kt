@@ -15,6 +15,7 @@ import junit.framework.Assert.assertFalse
 import junit.framework.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainRepositoryTest {
@@ -305,5 +306,44 @@ class MainRepositoryTest {
 
         // Error from the server, so the result should NOT be saved
         assertFalse(currencyRateSaved.get())
+    }
+
+    @Test
+    fun `test - fetchCurrencyRates, rates update in update time`() {
+        val serverResponse =
+            Success(CurrencyRate("USD", System.currentTimeMillis(), listOf(Quote("one", "1"))))
+        val currencyLayerClient = MockCurrencyClient(
+            currencyList = Single.just(Success(emptyList())),
+            currencyRates = Single.just(serverResponse)
+        )
+        val fakeCurrencyRateGenerator = MockFakeCurrencyRateGenerator()
+
+        val currencyListSaved = AtomicBoolean(false)
+        val currencyRateSaved = AtomicBoolean(false)
+        val currencyRateDao = MockCurrencyRateDao {
+            currencyRateSaved.set(true)
+        }
+        val currencyDao = MockCurrencyDao {
+            currencyListSaved.set(true)
+        }
+        // Prepare database result
+        currencyRateDao.result = CurrencyRate.Empty
+
+        val repository = MainRepository(
+            currencyLayerClient = currencyLayerClient,
+            fakeCurrencyRateGenerator = fakeCurrencyRateGenerator,
+            currencyDao = currencyDao,
+            currencyRateDao = currencyRateDao,
+            rateUpdateTime = 100
+        )
+        val test = repository.fetchCurrencyRates("USD").test()
+
+        // Should updates server result
+        test.await(2, TimeUnit.SECONDS)
+        assertTrue(test.values().size > 1)
+        test.dispose()
+
+        // Success from the server, so the result should be saved
+        assertTrue(currencyRateSaved.get())
     }
 }
